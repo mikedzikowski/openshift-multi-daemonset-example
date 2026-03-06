@@ -182,13 +182,13 @@ spec:
       - key: "node.kubernetes.io/unreachable"
         operator: Exists
         effect: NoExecute
-    resources:
-      requests:
-        cpu: 1000m
-        memory: 500Mi
-      limits:
-        cpu: 1000m
-        memory: 1Gi
+    # resources:
+    #   requests:
+    #     cpu: 1000m
+    #     memory: 500Mi
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 1Gi
 
 # -----------------------------------------------------------------------------
 # 6. FALCONNODESENSOR CR — Master / Control Plane Nodes
@@ -313,4 +313,5 @@ spec:
 # 9. Verify full coverage:
 #    oc get pods -n falcon-system -o wide && echo "---" && \
 #    oc get pods -n falcon-master-nodes -o wide
+
 # =============================================================================
