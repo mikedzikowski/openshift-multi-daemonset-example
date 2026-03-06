@@ -1,33 +1,7 @@
 ```markdown
-> [!WARNING]
-> **This is not an official CrowdStrike product or supported solution.**
-> This manifest was created as a reference implementation and has not been
-> validated by CrowdStrike. It is provided as-is with no warranty or support.
->
-> **Test in a non-production lab environment before deploying to production.**
-> CrowdStrike Support will not provide assistance for issues arising from
-> the use of this manifest.
->
-> For official deployment guidance, refer to:
-> - [Falcon Operator GitHub](https://github.com/crowdstrike/falcon-operator)
-> - [CrowdStrike Support Portal](https://supportportal.crowdstrike.com)
-```
-
-Full updated README:
-
-```markdown
-> [!WARNING]
-> **This is not an official CrowdStrike product or supported solution.**
-> This manifest was created as a reference implementation and has not been
-> validated by CrowdStrike. It is provided as-is with no warranty or support.
->
-> **Test in a non-production lab environment before deploying to production.**
-> CrowdStrike Support will not provide assistance for issues arising from
-> the use of this manifest.
->
-> For official deployment guidance, refer to:
-> - [Falcon Operator GitHub](https://github.com/crowdstrike/falcon-operator)
-> - [CrowdStrike Support Portal](https://supportportal.crowdstrike.com)
+> **Note:** This is not an official CrowdStrike product or supported solution.
+> This manifest is provided as a reference implementation. Test in a lab
+> environment before deploying to production.
 
 # CrowdStrike Falcon Node Sensor — OpenShift Deployment Guide
 
@@ -104,9 +78,9 @@ grep -n "YOUR_" falcon-node-sensor-cid.yaml
 ```
 > Output should be empty before proceeding.
 
-> **Note:** If your cluster does not require a proxy, remove the `apd`, `aph`,
-> and `app` fields from both FalconNodeSensor CRs. If OpenShift cluster-wide
-> proxy is configured via OLM, the operator will pick it up automatically.
+> If your cluster does not require a proxy, remove the `apd`, `aph`, and `app`
+> fields from both FalconNodeSensor CRs. If OpenShift cluster-wide proxy is
+> configured via OLM, the operator will pick it up automatically.
 
 ---
 
@@ -146,10 +120,10 @@ watch oc get pods -n falcon-operator
 > Proceed only when the operator pod shows `Running`.
 
 ### Step 5 — Patch Master DaemonSet NodeSelector
-> **Important:** The Falcon Operator overrides the `nodeSelector` field and sets
-> it to `kubernetes.io/os: linux` which matches all nodes. The patch below
-> restricts the master DaemonSet to master nodes only. Run this after the
-> master DaemonSet is created:
+The Falcon Operator overrides the `nodeSelector` field and sets it to
+`kubernetes.io/os: linux` which matches all nodes. The patch below restricts
+the master DaemonSet to master nodes only. Run this after the master DaemonSet
+is created:
 
 ```bash
 oc patch daemonset falcon-node-sensor-master \
@@ -205,11 +179,8 @@ oc get events -n falcon-master-nodes --sort-by='.lastTimestamp'
 
 ### Pods CrashLoopBackOff
 ```bash
-# Check logs
 oc logs <pod-name> -n falcon-master-nodes
 oc logs <pod-name> -n falcon-master-nodes -c init-falconstore
-
-# Check pod events
 oc describe pod <pod-name> -n falcon-master-nodes | tail -30
 ```
 
@@ -247,9 +218,8 @@ oc adm policy remove-scc-from-user falcon-sensor-scc \
   system:serviceaccount:falcon-master-nodes:falcon-operator-node-sensor
 ```
 
-> **Note:** If uninstallation pods crashloop, manually remove
-> `/opt/CrowdStrike` from affected nodes to prevent stale Agent IDs
-> on reinstall.
+> If uninstallation pods crashloop, manually remove `/opt/CrowdStrike` from
+> affected nodes to prevent stale Agent IDs on reinstall.
 
 ---
 
@@ -265,4 +235,13 @@ OpenShift Cluster
 └── falcon-master-nodes (namespace)
     ├── FalconNodeSensor CR          ← master CR
     └── DaemonSet                    ← 1 pod per master node
+```
+
+---
+
+## Resources
+
+- [Falcon Operator GitHub](https://github.com/crowdstrike/falcon-operator)
+- [Falcon Operator Documentation](https://github.com/crowdstrike/falcon-operator/blob/main/docs/node/README.md)
+- [CrowdStrike Support Portal](https://supportportal.crowdstrike.com)
 ```
