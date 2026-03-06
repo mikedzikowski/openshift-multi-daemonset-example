@@ -155,8 +155,26 @@ falcon-node-sensor-worker   3         3         3       3
 NAME                        DESIRED   CURRENT   READY   AVAILABLE
 falcon-node-sensor-master   3         3         3       3
 ```
-
+```
+Expected Output
+DaemonSets
+NAME                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+falcon-node-sensor-worker   3         3         3       3            3           kubernetes.io/os=linux   118m
 ---
+NAME                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                                          AGE
+falcon-node-sensor-master   3         3         3       3            3           kubernetes.io/os=linux,node-role.kubernetes.io/master=  7m39s
+Pods
+NAME                              READY   STATUS    RESTARTS   AGE    IP           NODE
+falcon-node-sensor-worker-6xzf5   1/1     Running   0          115m   10.2.4.132   worker-eastus1-f6kbc
+falcon-node-sensor-worker-s4qlz   1/1     Running   0          115m   10.2.4.134   worker-eastus2-867fq
+falcon-node-sensor-worker-vspkd   1/1     Running   0          115m   10.2.4.135   worker-eastus3-rf7qq
+---
+NAME                              READY   STATUS    RESTARTS   AGE    IP          NODE
+falcon-node-sensor-master-n27gn   1/1     Running   0          95s    10.2.4.10   master-2
+falcon-node-sensor-master-qpcms   1/1     Running   0          2m35s  10.2.4.8    master-0
+falcon-node-sensor-master-rftgh   1/1     Running   0          118s   10.2.4.9    master-1
+---
+```
 
 ## Troubleshooting
 
