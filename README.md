@@ -1,8 +1,3 @@
-```markdown
-> **Note:** This is not an official CrowdStrike product or supported solution.
-> This manifest is provided as a reference implementation. Test in a lab
-> environment before deploying to production.
-
 # CrowdStrike Falcon Node Sensor — OpenShift Deployment Guide
 
 ## Overview
@@ -244,4 +239,3 @@ OpenShift Cluster
 - [Falcon Operator GitHub](https://github.com/crowdstrike/falcon-operator)
 - [Falcon Operator Documentation](https://github.com/crowdstrike/falcon-operator/blob/main/docs/node/README.md)
 - [CrowdStrike Support Portal](https://supportportal.crowdstrike.com)
-```
