@@ -257,3 +257,5 @@ OpenShift Cluster
 - [Falcon Operator GitHub](https://github.com/crowdstrike/falcon-operator)
 - [Falcon Operator Documentation](https://github.com/crowdstrike/falcon-operator/blob/main/docs/node/README.md)
 - [CrowdStrike Support Portal](https://supportportal.crowdstrike.com)
+
+## Note: This is not an official CrowdStrike product, YAML file, or offical deployment guidance. 
