@@ -1,0 +1,316 @@
+# =============================================================================
+# CrowdStrike Falcon Node Sensor — CID + Proxy Configuration
+# Targets: Worker Nodes      (falcon-system)
+#          Master/Control Plane Nodes (falcon-master-nodes)
+# No API credentials needed — image pulled from customer registry
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. NAMESPACES
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falcon-operator
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falcon-system
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+    openshift.io/cluster-monitoring: "true"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falcon-master-nodes
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+    openshift.io/cluster-monitoring: "true"
+
+# -----------------------------------------------------------------------------
+# 2. SERVICE ACCOUNTS
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falcon-operator-node-sensor
+  namespace: falcon-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falcon-operator-node-sensor
+  namespace: falcon-master-nodes
+
+# -----------------------------------------------------------------------------
+# 3. OPENSHIFT SCC
+# -----------------------------------------------------------------------------
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: falcon-sensor-scc
+allowPrivilegedContainer: true
+allowHostDirVolumePlugin: true
+allowHostIPC: true
+allowHostNetwork: true
+allowHostPID: true
+allowHostPorts: true
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - "*"
+users:
+  - system:serviceaccount:falcon-system:falcon-operator-node-sensor
+  - system:serviceaccount:falcon-master-nodes:falcon-operator-node-sensor
+groups: []
+
+# -----------------------------------------------------------------------------
+# 4. RBAC
+# -----------------------------------------------------------------------------
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: falcon-sensor-node-role
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - namespaces
+      - secrets
+      - serviceaccounts
+      - configmaps
+      - events
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["falcon.crowdstrike.com"]
+    resources:
+      - falconnodesensors
+      - falconnodesensors/status
+      - falconnodesensors/finalizers
+    verbs: ["*"]
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    verbs: ["get", "list", "use"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: falcon-sensor-node-binding-worker
+subjects:
+  - kind: ServiceAccount
+    name: falcon-operator-node-sensor
+    namespace: falcon-system
+roleRef:
+  kind: ClusterRole
+  name: falcon-sensor-node-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: falcon-sensor-node-binding-master
+subjects:
+  - kind: ServiceAccount
+    name: falcon-operator-node-sensor
+    namespace: falcon-master-nodes
+roleRef:
+  kind: ClusterRole
+  name: falcon-sensor-node-role
+  apiGroup: rbac.authorization.k8s.io
+
+# -----------------------------------------------------------------------------
+# 5. FALCONNODESENSOR CR — Worker Nodes
+#    installNamespace: falcon-system
+# -----------------------------------------------------------------------------
+---
+apiVersion: falcon.crowdstrike.com/v1alpha1
+kind: FalconNodeSensor
+metadata:
+  name: falcon-node-sensor-worker
+spec:
+  installNamespace: falcon-system
+  falcon:
+    cid: <YOUR_FALCON_CID>
+    apd: false
+    aph: <YOUR_PROXY_HOST>
+    app: <YOUR_PROXY_PORT>
+    tags:
+      - "openshift"
+      - "worker-nodes"
+      - "<YOUR_CLUSTER_NAME>"
+    trace: "none"
+  node:
+    image: <YOUR_REGISTRY>/falcon-sensor:<VERSION>
+    nodeSelector:
+      node-role.kubernetes.io/worker: ""
+    tolerations:
+      - key: "node-role.kubernetes.io/worker"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node.kubernetes.io/not-ready"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node.kubernetes.io/unreachable"
+        operator: Exists
+        effect: NoExecute
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 500Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+# -----------------------------------------------------------------------------
+# 6. FALCONNODESENSOR CR — Master / Control Plane Nodes
+#    installNamespace: falcon-master-nodes
+#    IMPORTANT: After apply, patch the DaemonSet nodeSelector manually:
+#    oc patch daemonset falcon-node-sensor-master -n falcon-master-nodes \
+#      --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":
+#      {"kubernetes.io/os":"linux","node-role.kubernetes.io/master":""}}}}}'
+# -----------------------------------------------------------------------------
+---
+apiVersion: falcon.crowdstrike.com/v1alpha1
+kind: FalconNodeSensor
+metadata:
+  name: falcon-node-sensor-master
+spec:
+  installNamespace: falcon-master-nodes
+  falcon:
+    cid: <YOUR_FALCON_CID>
+    apd: false
+    aph: <YOUR_PROXY_HOST>
+    app: <YOUR_PROXY_PORT>
+    tags:
+      - "openshift"
+      - "master-nodes"
+      - "control-plane"
+      - "<YOUR_CLUSTER_NAME>"
+    trace: "none"
+  node:
+    image: <YOUR_REGISTRY>/falcon-sensor:<VERSION>
+    nodeSelector:
+      node-role.kubernetes.io/master: ""
+    tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node.kubernetes.io/not-ready"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node.kubernetes.io/unreachable"
+        operator: Exists
+        effect: NoExecute
+      - key: "node.kubernetes.io/disk-pressure"
+        operator: Exists
+        effect: NoSchedule
+      - key: "node.kubernetes.io/memory-pressure"
+        operator: Exists
+        effect: NoSchedule
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 500Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+# -----------------------------------------------------------------------------
+# 7. OLM OPERATOR SUBSCRIPTION
+# -----------------------------------------------------------------------------
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: falcon-operator-group
+  namespace: falcon-operator
+spec: {}
+
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: falcon-operator
+  namespace: falcon-operator
+spec:
+  channel: stable
+  name: falcon-operator
+  source: certified-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Manual
+
+# =============================================================================
+# DEPLOYMENT ORDER
+# =============================================================================
+# 1. Substitute placeholders:
+#    sed -i 's/<YOUR_FALCON_CID>/your_cid/g' falcon-node-sensor-cid.yaml
+#    sed -i 's/<YOUR_PROXY_HOST>/proxy.example.com/g' falcon-node-sensor-cid.yaml
+#    sed -i 's/<YOUR_PROXY_PORT>/8080/g' falcon-node-sensor-cid.yaml
+#    sed -i 's|<YOUR_REGISTRY>/falcon-sensor:<VERSION>|your-registry.example.com/falcon-sensor:7.34.0|g' falcon-node-sensor-cid.yaml
+#    sed -i 's/<YOUR_CLUSTER_NAME>/your_cluster_name/g' falcon-node-sensor-cid.yaml
+#
+# 2. Verify no placeholders remain:
+#    grep -n "YOUR_" falcon-node-sensor-cid.yaml
+#
+# 3. Apply full manifest:
+#    oc apply -f falcon-node-sensor-cid.yaml
+#
+# 4. Approve InstallPlan:
+#    INSTALL_PLAN=$(oc get installplan -n falcon-operator \
+#      -o jsonpath='{.items[0].metadata.name}')
+#    oc patch installplan $INSTALL_PLAN -n falcon-operator \
+#      --type merge --patch '{"spec":{"approved":true}}'
+#
+# 5. Apply SCC bindings:
+#    oc adm policy add-scc-to-user falcon-sensor-scc \
+#      system:serviceaccount:falcon-system:falcon-operator-node-sensor
+#    oc adm policy add-scc-to-user falcon-sensor-scc \
+#      system:serviceaccount:falcon-master-nodes:falcon-operator-node-sensor
+#
+# 6. Wait for operator pod to be Running:
+#    watch oc get pods -n falcon-operator
+#
+# 7. Apply FalconNodeSensor CRs:
+#    oc apply -f falcon-node-sensor-cid.yaml
+#
+# 8. Patch master DaemonSet nodeSelector (operator overrides nodeSelector):
+#    oc patch daemonset falcon-node-sensor-master -n falcon-master-nodes \
+#      --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":
+#      {"kubernetes.io/os":"linux","node-role.kubernetes.io/master":""}}}}}'
+#
+# 9. Verify full coverage:
+#    oc get pods -n falcon-system -o wide && echo "---" && \
+#    oc get pods -n falcon-master-nodes -o wide
+# =============================================================================
